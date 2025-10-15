@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureCom</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for a spy-themed monospace font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #111827; /* bg-gray-900 */
+        }
+        .title-font {
+            font-family: 'Major Mono Display', monospace;
+        }
+        /* Custom scrollbar for a better dark mode experience */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; } /* bg-gray-800 */
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; } /* bg-gray-600 */
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; } /* bg-gray-500 */
+        
+        /* Animation for incoming messages */
+        .message-enter {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+        .message-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Styling for the drop zone highlight */
+        .dragover {
+            border-color: #f87171; /* red-400 */
+            background-color: rgba(248, 113, 113, 0.1);
+        }
+    </style>
+</head>
+<body class="text-gray-200 flex items-center justify-center min-h-screen">
+
+    <!-- Custom Notification Area -->
+    <div id="notification" class="fixed top-5 right-5 bg-red-600 text-white py-2 px-4 rounded-lg shadow-lg text-sm opacity-0 transform translate-y-2 transition-all duration-500">
+        Notification Text
+    </div>
+
+    <div class="container w-full max-w-2xl mx-auto p-4">
+
+        <!-- Entry Window -->
+        <div id="entry-window" class="bg-gray-800 p-8 rounded-lg shadow-2xl transition-opacity duration-500">
+            <h1 class="title-font text-4xl text-center mb-2 text-red-400">SecureCom</h1>
+            <p class="text-center text-gray-400 mb-8">Ephemeral. Encrypted. Anonymous.</p>
+            <div class="flex gap-4">
+                 <input type="text" id="custom-code-input" placeholder="Enter custom ID (optional)" class="w-full bg-gray-700 text-white border border-gray-600 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-red-500">
+                <button id="create-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-md transition-transform transform hover:scale-105 whitespace-nowrap">
+                    Establish Channel
+                </button>
+            </div>
+            <div class="relative flex py-5 items-center">
+                <div class="flex-grow border-t border-gray-600"></div>
+                <span class="flex-shrink mx-4 text-gray-500">OR</span>
+                <div class="flex-grow border-t border-gray-600"></div>
+            </div>
+            <div class="flex gap-4">
+                <input type="text" id="room-code-input" placeholder="Enter Channel ID" class="w-full bg-gray-700 text-white border border-gray-600 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-red-500">
+                <button id="join-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-md transition-transform transform hover:scale-105">
+                    Join
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Window -->
+        <div id="chat-window" class="hidden h-[80vh] flex flex-col bg-gray-800 p-4 sm:p-6 rounded-lg shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-3">
+                 <div>
+                    <h2 class="text-xl font-bold">Channel ID: <span id="room-code-display" class="text-red-400"></span></h2>
+                    <p class="text-sm text-gray-400">You are: <span id="user-name-display" class="font-bold"></span></p>
+                </div>
+                <button id="leave-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition duration-300">Leave</button>
+            </div>
+            <div id="messages" class="flex-grow overflow-y-auto mb-4 pr-2">
+                <!-- Messages will be injected here -->
+            </div>
+            <div class="flex items-center gap-3">
+                <input type="text" id="message-input" placeholder="Transmit message..." class="flex-grow bg-gray-700 text-white border border-gray-600 rounded-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-red-500">
+                 <!-- File Upload Icon -->
+                <button id="file-btn" class="p-2 rounded-full hover:bg-gray-700 transition duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                </button>
+                <button id="send-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-full transition-transform transform hover:scale-105">Send</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- File Upload Modal -->
+    <div id="file-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 rounded-lg p-8 w-full max-w-md relative">
+            <button id="close-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-white">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h3 class="text-xl font-bold mb-4">Transmit File</h3>
+            <div id="drop-zone" class="border-2 border-dashed border-gray-600 rounded-lg p-10 text-center cursor-pointer hover:border-red-500 transition duration-300">
+                <p class="text-gray-400">Drag & Drop file here</p>
+                <p class="text-xs text-gray-500 mt-2">or click to select</p>
+            </div>
+            <input type="file" id="file-input" class="hidden">
+        </div>
+    </div>
+
+
+<script>
+    // --- Dynamic WebSocket URL ---
+    // This is the key change for deployment.
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socketUrl = `${wsProtocol}//${window.location.host}/ws`;
+    const socket = new WebSocket(socketUrl);
+
+    let myUserName = '';
+
+    // --- Element Selectors ---
+    const entryWindow = document.getElementById('entry-window');
+    const chatWindow = document.getElementById('chat-window');
+    // ... all other selectors are the same
+    const createBtn = document.getElementById('create-btn');
+    const joinBtn = document.getElementById('join-btn');
+    const leaveBtn = document.getElementById('leave-btn');
+    const sendBtn = document.getElementById('send-btn');
+    const fileBtn = document.getElementById('file-btn');
+    const customCodeInput = document.getElementById('custom-code-input');
+    const roomCodeInput = document.getElementById('room-code-input');
+    const messageInput = document.getElementById('message-input');
+    const messagesDiv = document.getElementById('messages');
+    const roomCodeDisplay = document.getElementById('room-code-display');
+    const userNameDisplay = document.getElementById('user-name-display');
+    const notification = document.getElementById('notification');
+    const fileModal = document.getElementById('file-modal');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    
+    // --- The rest of the script is exactly the same ---
+    // --- Custom Notification Function ---
+    function showNotification(message, isError = false) {
+        notification.textContent = message;
+        notification.className = `fixed top-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg text-sm opacity-0 transform translate-y-2 transition-all duration-500 ${isError ? 'bg-red-500' : 'bg-red-600'}`;
+        void notification.offsetWidth;
+        notification.classList.remove('opacity-0', 'translate-y-2');
+        notification.classList.add('opacity-100', 'translate-y-0');
+        setTimeout(() => {
+            notification.classList.remove('opacity-100', 'translate-y-0');
+            notification.classList.add('opacity-0', 'translate-y-2');
+        }, 3000);
+    }
+
+    // --- UI Transition ---
+    function showChatWindow(code, userName) {
+        myUserName = userName;
+        entryWindow.style.opacity = '0';
+        setTimeout(() => {
+            entryWindow.classList.add('hidden');
+            chatWindow.classList.remove('hidden');
+            roomCodeDisplay.textContent = code;
+            userNameDisplay.textContent = userName;
+        }, 500);
+    }
+
+    // --- Message & Notification Appending ---
+    function appendMessage(html) {
+        const messageElement = document.createElement('div');
+        messageElement.innerHTML = html;
+        messageElement.firstElementChild.classList.add('message-enter');
+        messagesDiv.appendChild(messageElement);
+        requestAnimationFrame(() => {
+            messageElement.firstElementChild.classList.add('message-enter-active');
+        });
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    function appendSystemMessage(text) {
+        const html = `<div class="text-center my-2"><span class="text-xs text-gray-500 italic">${text}</span></div>`;
+        appendMessage(html);
+    }
+
+    function appendUserMessage(sender, text) {
+        const isMe = sender === myUserName;
+        const alignClass = isMe ? 'justify-end' : 'justify-start';
+        const bubbleColor = isMe ? 'bg-red-600' : 'bg-gray-600';
+        const html = `
+            <div class="flex ${alignClass} mb-3">
+                <div class="${bubbleColor} rounded-lg px-4 py-2 max-w-sm">
+                    ${!isMe ? `<p class="text-xs font-bold text-red-300">${sender}</p>` : ''}
+                    <p class="text-sm">${text}</p>
+                </div>
+            </div>`;
+        appendMessage(html);
+    }
+
+    function appendFileMessage(sender, filename, filedata, filetype) {
+        const isMe = sender === myUserName;
+        const alignClass = isMe ? 'justify-end' : 'justify-start';
+        const bubbleColor = isMe ? 'bg-red-800' : 'bg-gray-700';
+        const byteCharacters = atob(filedata);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: filetype });
+        const url = URL.createObjectURL(blob);
+        const html = `
+            <div class="flex ${alignClass} mb-3">
+                <div class="${bubbleColor} rounded-lg px-4 py-2 max-w-sm">
+                     ${!isMe ? `<p class="text-xs font-bold text-red-300">${sender}</p>` : ''}
+                    <div class="flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <span class="text-sm">${filename}</span>
+                        <a href="${url}" download="${filename}" class="text-red-400 hover:text-red-300">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        </a>
+                    </div>
+                </div>
+            </div>`;
+        appendMessage(html);
+    }
+
+    // --- Event Listeners ---
+    createBtn.addEventListener('click', () => {
+        const customCode = customCodeInput.value.trim();
+        socket.send(JSON.stringify({ action: 'create', code: customCode }));
+    });
+    joinBtn.addEventListener('click', () => {
+        const code = roomCodeInput.value;
+        if (code) socket.send(JSON.stringify({ action: 'join', code }));
+        else showNotification('Please enter a Channel ID.', true);
+    });
+    leaveBtn.addEventListener('click', () => socket.send(JSON.stringify({ action: 'leave' })));
+    const sendMessage = () => {
+        const text = messageInput.value.trim();
+        if (text) {
+            socket.send(JSON.stringify({ action: 'message', text }));
+            appendUserMessage(myUserName, text);
+            messageInput.value = '';
+        }
+    };
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendMessage());
+
+    // --- WebSocket Handlers ---
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        switch (data.type) {
+            case 'room_created':
+                showChatWindow(data.code, data.userName);
+                showNotification(`Channel ${data.code} established. You are ${data.userName}.`);
+                break;
+            case 'joined_success':
+                showChatWindow(data.code, data.userName);
+                appendSystemMessage(`You have joined the channel. You are ${data.userName}.`);
+                break;
+            case 'user_joined': appendSystemMessage(`${data.userName} has connected to the channel.`); break;
+            case 'user_left': appendSystemMessage(`${data.userName} has disconnected.`); break;
+            case 'new_message': appendUserMessage(data.sender, data.text); break;
+            case 'new_file': appendFileMessage(data.sender, data.filename, data.filedata, data.filetype); break;
+            case 'error': showNotification(data.message, true); break;
+        }
+    };
+
+    socket.onclose = () => {
+        showNotification('Connection terminated.', true);
+        setTimeout(() => window.location.reload(), 2000);
+    };
+    socket.onerror = (error) => {
+        console.error('WebSocket Error:', error);
+        showNotification('Connection error. Could not connect to server.', true);
+    };
+
+    // --- File Handling Logic ---
+    fileBtn.addEventListener('click', () => fileModal.classList.remove('hidden'));
+    closeModalBtn.addEventListener('click', () => fileModal.classList.add('hidden'));
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) handleFile(files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+        const files = e.target.files;
+        if (files.length > 0) handleFile(files[0]);
+    });
+    function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const filedata = e.target.result.split(',')[1];
+            const message = { action: 'file', filename: file.name, filetype: file.type, filedata: filedata };
+            socket.send(JSON.stringify(message));
+            appendFileMessage(myUserName, file.name, filedata, file.type);
+        };
+        reader.readAsDataURL(file);
+        fileModal.classList.add('hidden');
+    }
+</script>
+
+</body>
+</html>
+
