@@ -40,14 +40,23 @@ async def websocket_handler(request):
     origin = request.headers.get("Origin")
     print(f"Connection Origin: {origin}")
 
-    await ws.send_str("✅ Connected to SecureCom WebSocket server")
+    # Send a JSON-formatted connection confirmation
+    await ws.send_str(json.dumps({
+        "type": "status",
+        "message": "Connected to SecureCom WebSocket server"
+    }))
 
     current_room_code = None
 
     try:
         async for msg in ws:
             if msg.type == web.WSMsgType.TEXT:
-                data = json.loads(msg.data)
+                try:
+                    data = json.loads(msg.data)
+                except json.JSONDecodeError:
+                    print("Received non-JSON message:", msg.data)
+                    continue
+
                 msg_type = data.get("type")
 
                 if msg_type == "join":
@@ -94,5 +103,5 @@ app.router.add_get("/ws", websocket_handler)
 # --- Start Server ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    print(f"🚀 Server starting on 0.0.0.0:{port}")
+    print(f"Server starting on 0.0.0.0:{port}")
     web.run_app(app, host="0.0.0.0", port=port)
